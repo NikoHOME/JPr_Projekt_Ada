@@ -36,7 +36,6 @@ procedure Simulation is
    
    package Random_Assembly is new
      Ada.Numerics.Discrete_Random(Assembly_Type);
-   type My_Str is new String(1 ..256);
    
    package Random_Reduced_Assembly is new
      Ada.Numerics.Discrete_Random(Reduced_Assembly_Type);
