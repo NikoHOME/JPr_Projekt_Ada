@@ -26,5 +26,6 @@ Główne zmiany wprowadzone względem programu startowego:
 
 3. Maksymalne ograniczenie na każdy produkt - liczymy ile razy każdy produkt pojawia się we wszystkich zestawach. Dzielimy to przez łączną liczbę produktów we wszystkich zestawach i mnożymy przez pojemność bufora. Otrzymany wynik jest zaokrąglany w górę, żeby zawsze bufor mógł być wykorzystany w pełni. Przy zwykłym zaokrąglaniu czasem mogłoby pozostawać puste miejsce (np. bufor o pojemności 25 podzielony równo na 3 produkty - 8,(3) zaokrągli się do 8 i tylko 24 będą używane).
 4. Większa liczba produktów, klientów, zestawów
+5. Usunąłem z konsumentów zmienną "Consumption", również usunąłem z entry Start "Consumption_Time", które jest jej przypisywane. Poza przypisaniem nic innego nie robiły. Nie wiem czemu tam były w ogóle. Analogiczna sytuacja dla producentów i ich "Production" i "Production_Time"
 
-Do zakleszczenia, o którym mówi instrukcja nie powinno nigdy dojść, nawet w startowym programie, bo już tam zaimplementowane jest pilnowanie, żeby zawsze było miejsce na każdy zestaw. Prawdziwym problemem, który tam był jest głodzenie.
+Do zakleszczenia, o którym mówi instrukcja nie powinno nigdy dojść, nawet w startowym programie, bo już tam zaimplementowane jest pilnowanie, żeby zawsze było miejsce na każdy zestaw. Prawdziwym problemem, który tam był jest głodzenie, które powinno być teraz poprawione.
