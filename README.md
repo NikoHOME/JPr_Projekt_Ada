@@ -30,3 +30,7 @@ Główne zmiany wprowadzone względem programu startowego:
 6. Ilość produktów, które mamy w posiadaniu nie jest wyświetlana po każdym przyjęciu produktu, ale po przejściu z magazynu do kasy. Natomiast wciąż po każdym kliencie wypisujemy stan posiadania.
 
 Do zakleszczenia, o którym mówi instrukcja nie powinno nigdy dojść, nawet w startowym programie, bo już tam zaimplementowane jest pilnowanie, żeby zawsze było miejsce na każdy zestaw. Prawdziwym problemem, który tam był jest głodzenie, które powinno być teraz poprawione.
+
+DO ZROBIENIA:
+I    Posprawdzać czy na pewno działa i spełnia wymagania.
+II   Dodać lub poprawić kilka komentarzy - w szczególności opis i podpisanie się na górze.
