@@ -9,26 +9,30 @@ with Ada.Strings.Unbounded; use Ada.Strings.Unbounded;
 
 
 procedure Simulation is
-   Number_Of_Products: constant Integer := 5;
-   Number_Of_Assemblies: constant Integer := 3;
-   Number_Of_Consumers: constant Integer := 2;
+   Number_Of_Products: constant Integer := 7;
+   Number_Of_Assemblies: constant Integer := 5;
+   Number_Of_Consumers: constant Integer := 4;
    subtype Product_Type is Integer range 1 .. Number_Of_Products;
    subtype Assembly_Type is Integer range 1 .. Number_Of_Assemblies;
    subtype Consumer_Type is Integer range 1 .. Number_Of_Consumers;
    
-   subtype Reduced_Assembly_Type is Integer range 1 .. Number_Of_Assemblies - 1;
+   subtype Reduced_Assembly_Type is Integer range 0 .. Number_Of_Assemblies - 1;
    -- used for generating an alternative assembly
 
    Product_Name: constant array (Product_Type) of Unbounded_String
      := (To_Unbounded_String("Diesel Locomotive"),
          To_Unbounded_String("Electric Locomotive"),
+         To_Unbounded_String("Steam Locomotive"),
          To_Unbounded_String("Passenger Car"),
+         To_Unbounded_String("Sleeping Car"),
          To_Unbounded_String("Boxcar"),
          To_Unbounded_String("Tank Car"));
    Assembly_Name: constant array (Assembly_Type) of Unbounded_String
      := (To_Unbounded_String("Train Playset 1 'Rookie's Ruckus'"),
          To_Unbounded_String("Train Playset 2 'Cargo Craze'"),
-         To_Unbounded_String("Train Playset 3 'Freight Frenzy'"));                                       
+         To_Unbounded_String("Train Playset 3 'Freight Frenzy'"),
+         To_Unbounded_String("Train Playset 4 'Passenger Passion'"),
+         To_Unbounded_String("Train Playset 5 'Track Turmoil'"));                                       
    
    package Random_Assembly is new
      Ada.Numerics.Discrete_Random(Assembly_Type);
@@ -40,14 +44,13 @@ procedure Simulation is
    -- Producer produces determined product
    task type Producer is
       -- Give the Producer an identity, i.e. the product type
-      entry Start(Product: in Product_Type; Production_Time: in Integer);
+      entry Start(Product: in Product_Type);
    end Producer;
 
    -- Consumer gets an arbitrary assembly of several products from the buffer
    task type Consumer is
       -- Give the Consumer an identity
-      entry Start(Consumer_Number: in Consumer_Type;
-                  Consumption_Time: in Integer);
+      entry Start(Consumer_Number: in Consumer_Type);
    end Consumer;
 
    -- In the Buffer, products are assemblied into an assembly
@@ -63,19 +66,17 @@ procedure Simulation is
    B: Buffer;
 
    task body Producer is
-      subtype Production_Time_Range is Integer range 3 .. 6;
+      subtype Production_Time_Range is Integer range 4 .. 8;
       package Random_Production is new
         Ada.Numerics.Discrete_Random(Production_Time_Range);
       G: Random_Production.Generator;	--  generator liczb losowych
       Product_Type_Number: Integer;
       Product_Number: Integer;
-      Production: Integer;
    begin
-      accept Start(Product: in Product_Type; Production_Time: in Integer) do
+      accept Start(Product: in Product_Type) do
          Random_Production.Reset(G);	--  start random number generator
          Product_Number := 1;
          Product_Type_Number := Product;
-         Production := Production_Time;
       end Start;
       Put_Line("A workshop producing models of "
                & To_String(Product_Name(Product_Type_Number))
@@ -92,22 +93,28 @@ procedure Simulation is
    end Producer;
 
    task body Consumer is
-      subtype Consumption_Time_Range is Integer range 4 .. 8;
+      subtype Consumption_Time_Range is Integer range 12 .. 24;
       package Random_Consumption is new
         Ada.Numerics.Discrete_Random(Consumption_Time_Range);
       G: Random_Consumption.Generator;	--  random number generator (time)
       G2: Random_Assembly.Generator;	--  also (assemblies)
-      G_Reduced : Random_Reduced_Assembly.Generator;
+      G_Reduced : Random_Reduced_Assembly.Generator; -- also (switching assemblies)
       Consumer_Nb: Consumer_Type;
       Assembly_Number: Integer := 0;
-      Consumption: Integer;
       Assembly_Type: Integer;
       Alternate_Assembly_Type : Integer;
       Consumer_Name: constant array (1 .. Number_Of_Consumers)
         of Unbounded_String
-          := (To_Unbounded_String("Customer Joe"), To_Unbounded_String("Customer Tom"));
-      
-      procedure Announce_Purchase(Consumer_Nb : Consumer_Type; Assembly_Number : Integer; Chosen_Assembly_Type : Integer) is
+          := (To_Unbounded_String("Customer Joe"),
+              To_Unbounded_String("Customer Ben"),
+              To_Unbounded_String("Customer Sam"),
+              To_Unbounded_String("Customer Tom"));
+      Patience_Of_A_Customer : constant Duration := 4.0;
+
+      procedure Announce_Purchase
+        (Consumer_Nb : Consumer_Type; 
+         Assembly_Number : Integer; 
+         Chosen_Assembly_Type : Integer) is
       begin
          if Assembly_Number /= 0 then
             Put_Line(To_String(Consumer_Name(Consumer_Nb)) & " has bought the "
@@ -121,12 +128,10 @@ procedure Simulation is
       end Announce_Purchase;
 
    begin
-      accept Start(Consumer_Number: in Consumer_Type;
-                   Consumption_Time: in Integer) do
+      accept Start(Consumer_Number: in Consumer_Type) do
          Random_Consumption.Reset(G);	--  ustaw generator
          Random_Assembly.Reset(G2);	--  też
          Consumer_Nb := Consumer_Number;
-         Consumption := Consumption_Time;
       end Start;
       Put_Line(To_String(Consumer_Name(Consumer_Nb))
                & ", model train aficionado, "
@@ -135,18 +140,19 @@ procedure Simulation is
          delay Duration(Random_Consumption.Random(G)); --  simulate consumption
          Assembly_Type := Random_Assembly.Random(G2);
          Alternate_Assembly_Type
-           := (Assembly_Type + Random_Reduced_Assembly.Random(G_Reduced)) mod Assembly_Type;
-         -- adding a number that /= 0 and smaller than the number of assemblies
+           := (Assembly_Type + Random_Reduced_Assembly.Random(G_Reduced)) mod Assembly_Type + 1;
+         -- adding a number that /= 0 and smaller than the number of assemblies,
+         -- take mod, add 1 to shift to the right range (1..n instead of 0..n-1)
          -- to ensure that a different assembly is picked
 
          Put_Line(To_String(Consumer_Name(Consumer_Nb)) & " came to buy a "
                   & To_String(Assembly_Name(Assembly_Type)));
          -- take an assembly for consumption
          select
-               B.Deliver(Assembly_Type, Assembly_Number);
-               Announce_Purchase(Consumer_Nb, Assembly_Number, Assembly_Type);
+            B.Deliver(Assembly_Type, Assembly_Number);
+            Announce_Purchase(Consumer_Nb, Assembly_Number, Assembly_Type);
          or
-            delay 1.0;
+            delay Patience_Of_A_Customer;
             Put_Line("After getting bored waiting in the queue "
                      & To_String(Consumer_Name(Consumer_Nb))
                      & " changed his mind and now wants a "
@@ -158,34 +164,36 @@ procedure Simulation is
    end Consumer;
 
    task body Buffer is
-      Storage_Capacity: constant Integer := 30;
+      Storage_Capacity: constant Integer := 60;
       type Storage_type is array (Product_Type) of Integer;
       Storage: Storage_type
-        := (0, 0, 0, 0, 0);
+        := (0, 0, 0, 0, 0, 0, 0);
       Assembly_Content: array(Assembly_Type, Product_Type) of Integer
-        := ((2, 1, 2, 1, 2),
-            (2, 2, 0, 1, 0),
-            (1, 1, 2, 0, 1));
+        := ((1, 1, 1, 1, 1, 1, 1),
+            (2, 0, 1, 0, 0, 3, 1),
+            (1, 2, 0, 0, 0, 2, 1),
+            (0, 2, 1, 4, 2, 0, 0),
+            (1, 1, 2, 0, 1, 1, 0));
       Max_Assembly_Content: array(Product_Type) of Integer;
       Assembly_Number: array(Assembly_Type) of Integer
-        := (1, 1, 1);
+        := (1, 1, 1, 1, 1);
       In_Storage: Integer := 0;
       
       Max_Accepted_Products : array(Product_Type) of Integer;
       
       -- time it takes to give an assembly to a customer
-      Customer_Handling_Time : constant Duration := 0.5; 
+      Customer_Handling_Time : constant Duration := 0.75; 
 
       -- time it takes to take a product from a producer
-      Producer_Handling_Time : constant Duration := 0.5; 
+      Producer_Handling_Time : constant Duration := 0.75; 
       
       -- how long can we wait when there are no customers
       -- before we go to the storage room
-      Patience_For_Customers : constant Duration := 2.0; 
+      Patience_For_Customers : constant Duration := 3.0; 
 
       -- how long can we wait when there are no producers
       -- before we go to the cash register
-      Patience_For_Producers : constant Duration := 2.0; 
+      Patience_For_Producers : constant Duration := 1.0; 
                                                          
       -- how many products at most can we take before we go back to the cash register
       Max_Products_In_A_Row : constant Integer := 2 * Number_Of_Products;
@@ -290,7 +298,7 @@ procedure Simulation is
       begin
          Put_Line("We have accepted a new " & To_String(Product_Name(Product))
                   & " number " & Integer'Image(Number)
-                  & " into out stock");
+                  & " from a workshop into out stock");
          Storage(Product) := Storage(Product) + 1;
          In_Storage := In_Storage + 1;
       end Successful_Taking;
@@ -300,7 +308,8 @@ procedure Simulation is
          Put_Line("We already have enough "
                   & To_String(Product_Name(Product))
                   & "s in storage, so we had to reject the one numbered "
-                  & Integer'Image(Number));
+                  & Integer'Image(Number)
+                  & ". They will give it to a different store");
       end Unsuccessful_Taking;
 
       procedure Successful_Delivery(Assembly: in Assembly_Type; Number: out Integer) is
@@ -340,7 +349,6 @@ procedure Simulation is
                   end if;
                   delay Producer_Handling_Time;
                   Products_In_A_Row := Products_In_A_Row + 1;
-                  Storage_Contents;
                end Take;
             or
                delay Patience_For_Producers;
@@ -351,7 +359,8 @@ procedure Simulation is
          if Products_In_A_Row >= Max_Products_In_A_Row then
             Put_Line("Enough producers, time to go to the cash register");
          end if;
-         
+         Storage_Contents;
+                  
          Customers_In_A_Row := 0;
          while Customers_In_A_Row < Max_Customers_In_A_Row loop
             select
@@ -379,10 +388,10 @@ procedure Simulation is
    
 begin
    for I in 1 .. Number_Of_Products loop
-      P(I).Start(I, 10);
+      P(I).Start(I);
    end loop;
    for J in 1 .. Number_Of_Consumers loop
-      K(J).Start(J,12);
+      K(J).Start(J);
    end loop;
 end Simulation;
 
